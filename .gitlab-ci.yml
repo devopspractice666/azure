@@ -1,0 +1,83 @@
+image:
+  name: hashicorp/terraform:1.17.2
+  entrypoint: [""]
+
+stages:
+  - validate
+  - plan
+  - apply
+
+variables:
+  TF_ROOT: ${CI_PROJECT_DIR}/terraform
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "0"
+  ARM_USE_OIDC: "true"
+  ARM_CLIENT_ID: "dbb75d24-124d-4ad4-ba1a-655b7d36f193"
+  ARM_TENANT_ID: "ce4fe8c3-7620-4469-892f-509e9b1e1401"
+  ARM_SUBSCRIPTION_ID: "8999b3c0-35d0-4d50-870d-048f32c71e67"
+
+.terraform:
+  before_script:
+    - cd "${TF_ROOT}"
+  id_tokens:
+    ARM_OIDC_TOKEN:
+      aud: api://AzureADTokenExchange
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
+
+fmt:
+  extends: .terraform
+  stage: validate
+  script:
+    - terraform fmt -check -recursive
+
+validate:
+  extends: .terraform
+  stage: validate
+  script:
+    - terraform init -backend=false
+    - terraform validate
+
+plan:
+  extends: .terraform
+  stage: plan
+  resource_group: production
+  script:
+    - terraform init
+    - terraform plan -out=tfplan
+  artifacts:
+    paths:
+      - terraform/tfplan
+    expire_in: 1 day
+
+apply:
+  extends: .terraform
+  stage: apply
+  resource_group: production
+  environment:
+    name: production
+  needs:
+    - plan
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
+      when: manual
+      allow_failure: false
+  script:
+    - terraform init
+    - terraform apply tfplan
+
+destroy:
+  extends: .terraform
+  stage: apply
+  resource_group: production
+  environment:
+    name: production
+    action: stop
+  needs: []
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
+      when: manual
+      allow_failure: true
+  script:
+    - terraform init
+    - terraform destroy -auto-approve
