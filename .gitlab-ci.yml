@@ -23,19 +23,6 @@ variables:
   rules:
     - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
 
-.oidc:
-  id_tokens:
-    GITLAB_OIDC_TOKEN:
-      aud: api://AzureADTokenExchange
-  before_script:
-    - cd "${TF_ROOT}"
-    - TOKEN="${GITLAB_OIDC_TOKEN:-$CI_JOB_JWT_V2}"
-    - 'test -n "$TOKEN" || (echo "ERROR: OIDC token is empty" && exit 1)'
-    - printf '%s' "$TOKEN" > "${CI_PROJECT_DIR}/oidc.jwt"
-    - export ARM_OIDC_TOKEN="$TOKEN"
-    - export ARM_OIDC_TOKEN_FILE_PATH="${CI_PROJECT_DIR}/oidc.jwt"
-    - echo "OIDC token length ${#TOKEN}"
-
 fmt:
   extends: .terraform
   stage: validate
@@ -50,11 +37,17 @@ validate:
     - terraform validate
 
 plan:
-  extends:
-    - .terraform
-    - .oidc
+  extends: .terraform
   stage: plan
   resource_group: production
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: api://AzureADTokenExchange
+  before_script:
+    - cd "${TF_ROOT}"
+    - 'test -n "$GITLAB_OIDC_TOKEN" || (echo "ERROR: OIDC token is empty" && exit 1)'
+    - printf '%s' "$GITLAB_OIDC_TOKEN" > "${CI_PROJECT_DIR}/oidc.jwt"
+    - echo "OIDC token length ${#GITLAB_OIDC_TOKEN}"
   script:
     - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false" -backend-config="oidc_token_file_path=${CI_PROJECT_DIR}/oidc.jwt" -backend-config="client_id=${ARM_CLIENT_ID}" -backend-config="tenant_id=${ARM_TENANT_ID}"
     - terraform plan -out=tfplan
@@ -64,9 +57,7 @@ plan:
     expire_in: 1 day
 
 apply:
-  extends:
-    - .terraform
-    - .oidc
+  extends: .terraform
   stage: apply
   resource_group: production
   environment:
@@ -77,14 +68,20 @@ apply:
     - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
       when: manual
       allow_failure: false
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: api://AzureADTokenExchange
+  before_script:
+    - cd "${TF_ROOT}"
+    - 'test -n "$GITLAB_OIDC_TOKEN" || (echo "ERROR: OIDC token is empty" && exit 1)'
+    - printf '%s' "$GITLAB_OIDC_TOKEN" > "${CI_PROJECT_DIR}/oidc.jwt"
+    - echo "OIDC token length ${#GITLAB_OIDC_TOKEN}"
   script:
     - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false" -backend-config="oidc_token_file_path=${CI_PROJECT_DIR}/oidc.jwt" -backend-config="client_id=${ARM_CLIENT_ID}" -backend-config="tenant_id=${ARM_TENANT_ID}"
     - terraform apply tfplan
 
 destroy:
-  extends:
-    - .terraform
-    - .oidc
+  extends: .terraform
   stage: apply
   resource_group: production
   environment:
@@ -95,6 +92,14 @@ destroy:
     - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
       when: manual
       allow_failure: true
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: api://AzureADTokenExchange
+  before_script:
+    - cd "${TF_ROOT}"
+    - 'test -n "$GITLAB_OIDC_TOKEN" || (echo "ERROR: OIDC token is empty" && exit 1)'
+    - printf '%s' "$GITLAB_OIDC_TOKEN" > "${CI_PROJECT_DIR}/oidc.jwt"
+    - echo "OIDC token length ${#GITLAB_OIDC_TOKEN}"
   script:
     - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false" -backend-config="oidc_token_file_path=${CI_PROJECT_DIR}/oidc.jwt" -backend-config="client_id=${ARM_CLIENT_ID}" -backend-config="tenant_id=${ARM_TENANT_ID}"
     - terraform destroy -auto-approve
