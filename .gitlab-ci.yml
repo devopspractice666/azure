@@ -43,7 +43,7 @@ plan:
   stage: plan
   resource_group: production
   script:
-    - terraform init
+    - terraform init -backend-config="use_oidc=true"
     - terraform plan -out=tfplan
   artifacts:
     paths:
@@ -63,7 +63,7 @@ apply:
       when: manual
       allow_failure: false
   script:
-    - terraform init
+    - terraform init -backend-config="use_oidc=true"
     - terraform apply tfplan
 
 destroy:
@@ -79,5 +79,5 @@ destroy:
       when: manual
       allow_failure: true
   script:
-    - terraform init
+    - terraform init -backend-config="use_oidc=true"
     - terraform destroy -auto-approve
