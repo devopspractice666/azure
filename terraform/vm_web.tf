@@ -6,6 +6,7 @@ resource "azurerm_linux_virtual_machine" "web" {
   admin_username                  = var.admin_username
   disable_password_authentication = true
   network_interface_ids           = [azurerm_network_interface.web.id]
+  custom_data                     = local.web_custom_data
   tags                            = merge(local.tags, { role = "web" })
 
   admin_ssh_key {

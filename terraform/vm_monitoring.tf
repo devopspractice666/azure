@@ -5,6 +5,7 @@ resource "azurerm_linux_virtual_machine" "monitoring" {
   size                            = var.monitoring_vm_size
   admin_username                  = var.admin_username
   disable_password_authentication = true
+  custom_data                     = local.monitoring_custom_data
   network_interface_ids           = [azurerm_network_interface.monitoring.id]
   tags                            = merge(local.tags, { role = "monitoring" })
 
