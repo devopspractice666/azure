@@ -30,7 +30,7 @@ variables:
   before_script:
     - cd "${TF_ROOT}"
     - TOKEN="${GITLAB_OIDC_TOKEN:-$CI_JOB_JWT_V2}"
-    - test -n "$TOKEN" || (echo "ERROR: OIDC token is empty" && exit 1)
+    - 'test -n "$TOKEN" || (echo "ERROR: OIDC token is empty" && exit 1)'
     - printf '%s' "$TOKEN" > "${CI_PROJECT_DIR}/oidc.jwt"
     - export ARM_OIDC_TOKEN="$TOKEN"
     - export ARM_OIDC_TOKEN_FILE_PATH="${CI_PROJECT_DIR}/oidc.jwt"
