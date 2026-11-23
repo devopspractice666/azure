@@ -20,8 +20,11 @@ variables:
 .terraform:
   before_script:
     - cd "${TF_ROOT}"
+    - test -n "$GITLAB_OIDC_TOKEN"
+    - printf '%s' "$GITLAB_OIDC_TOKEN" > "${CI_PROJECT_DIR}/oidc.jwt"
+    - echo "oidc token length ${#GITLAB_OIDC_TOKEN}"
   id_tokens:
-    ARM_OIDC_TOKEN:
+    GITLAB_OIDC_TOKEN:
       aud: api://AzureADTokenExchange
   rules:
     - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
@@ -44,7 +47,7 @@ plan:
   stage: plan
   resource_group: production
   script:
-    - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false"
+    - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false" -backend-config="oidc_token_file_path=${CI_PROJECT_DIR}/oidc.jwt" -backend-config="client_id=${ARM_CLIENT_ID}" -backend-config="tenant_id=${ARM_TENANT_ID}"
     - terraform plan -out=tfplan
   artifacts:
     paths:
@@ -64,7 +67,7 @@ apply:
       when: manual
       allow_failure: false
   script:
-    - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false"
+    - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false" -backend-config="oidc_token_file_path=${CI_PROJECT_DIR}/oidc.jwt" -backend-config="client_id=${ARM_CLIENT_ID}" -backend-config="tenant_id=${ARM_TENANT_ID}"
     - terraform apply tfplan
 
 destroy:
@@ -80,5 +83,5 @@ destroy:
       when: manual
       allow_failure: true
   script:
-    - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false"
+    - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false" -backend-config="oidc_token_file_path=${CI_PROJECT_DIR}/oidc.jwt" -backend-config="client_id=${ARM_CLIENT_ID}" -backend-config="tenant_id=${ARM_TENANT_ID}"
     - terraform destroy -auto-approve
