@@ -12,7 +12,7 @@ locals {
 
   web_custom_data = base64encode("#cloud-config\n${yamlencode({
     package_update = true
-    packages       = ["nginx"]
+    packages       = ["nginx", "docker.io", "docker-compose-v2"]
     write_files = [
       {
         path        = "/opt/azure1/nginx/nginx.conf"
@@ -34,6 +34,16 @@ locals {
         permissions = "0644"
         content     = file("${path.module}/../config/nginx/html/logo.svg")
       },
+      {
+        path        = "/opt/azure1/web/docker-compose.yml"
+        permissions = "0644"
+        content     = file("${path.module}/../config/web/docker-compose.yml")
+      },
+      {
+        path        = "/opt/azure1/web/alloy/config.alloy"
+        permissions = "0644"
+        content     = file("${path.module}/../config/web/alloy/config.alloy")
+      },
     ]
     runcmd = [
       "cp /opt/azure1/nginx/nginx.conf /etc/nginx/nginx.conf",
@@ -42,6 +52,8 @@ locals {
       "nginx -t",
       "systemctl enable nginx",
       "systemctl restart nginx",
+      "systemctl enable --now docker",
+      "docker compose -f /opt/azure1/web/docker-compose.yml up -d",
     ]
   })}")
 
@@ -68,6 +80,16 @@ locals {
         path        = "/opt/azure1/monitoring/grafana/provisioning/datasources/datasources.yml"
         permissions = "0644"
         content     = file("${path.module}/../config/monitoring/grafana/provisioning/datasources/datasources.yml")
+      },
+      {
+        path        = "/opt/azure1/monitoring/grafana/provisioning/dashboards/dashboards.yml"
+        permissions = "0644"
+        content     = file("${path.module}/../config/monitoring/grafana/provisioning/dashboards/dashboards.yml")
+      },
+      {
+        path        = "/opt/azure1/monitoring/grafana/provisioning/dashboards/azure1.json"
+        permissions = "0644"
+        content     = file("${path.module}/../config/monitoring/grafana/provisioning/dashboards/azure1.json")
       },
     ]
     runcmd = [
