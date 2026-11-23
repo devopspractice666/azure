@@ -30,15 +30,11 @@ variables:
   before_script:
     - cd "${TF_ROOT}"
     - TOKEN="${GITLAB_OIDC_TOKEN:-$CI_JOB_JWT_V2}"
-    - |
-      if [ -z "$TOKEN" ]; then
-        echo "ERROR: Ни GITLAB_OIDC_TOKEN, ни CI_JOB_JWT_V2 не переданы в джобу. Проверьте версию GitLab и настройки OIDC."
-        exit 1
-      fi
+    - test -n "$TOKEN" || (echo "ERROR: OIDC token is empty" && exit 1)
     - printf '%s' "$TOKEN" > "${CI_PROJECT_DIR}/oidc.jwt"
     - export ARM_OIDC_TOKEN="$TOKEN"
     - export ARM_OIDC_TOKEN_FILE_PATH="${CI_PROJECT_DIR}/oidc.jwt"
-    - echo "OIDC token length: ${#TOKEN}"
+    - echo "OIDC token length ${#TOKEN}"
 
 fmt:
   extends: .terraform
@@ -60,13 +56,7 @@ plan:
   stage: plan
   resource_group: production
   script:
-    - >
-      terraform init
-      -backend-config="use_oidc=true"
-      -backend-config="use_cli=false"
-      -backend-config="oidc_token_file_path=${CI_PROJECT_DIR}/oidc.jwt"
-      -backend-config="client_id=${ARM_CLIENT_ID}"
-      -backend-config="tenant_id=${ARM_TENANT_ID}"
+    - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false" -backend-config="oidc_token_file_path=${CI_PROJECT_DIR}/oidc.jwt" -backend-config="client_id=${ARM_CLIENT_ID}" -backend-config="tenant_id=${ARM_TENANT_ID}"
     - terraform plan -out=tfplan
   artifacts:
     paths:
@@ -88,13 +78,7 @@ apply:
       when: manual
       allow_failure: false
   script:
-    - >
-      terraform init
-      -backend-config="use_oidc=true"
-      -backend-config="use_cli=false"
-      -backend-config="oidc_token_file_path=${CI_PROJECT_DIR}/oidc.jwt"
-      -backend-config="client_id=${ARM_CLIENT_ID}"
-      -backend-config="tenant_id=${ARM_TENANT_ID}"
+    - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false" -backend-config="oidc_token_file_path=${CI_PROJECT_DIR}/oidc.jwt" -backend-config="client_id=${ARM_CLIENT_ID}" -backend-config="tenant_id=${ARM_TENANT_ID}"
     - terraform apply tfplan
 
 destroy:
@@ -112,11 +96,5 @@ destroy:
       when: manual
       allow_failure: true
   script:
-    - >
-      terraform init
-      -backend-config="use_oidc=true"
-      -backend-config="use_cli=false"
-      -backend-config="oidc_token_file_path=${CI_PROJECT_DIR}/oidc.jwt"
-      -backend-config="client_id=${ARM_CLIENT_ID}"
-      -backend-config="tenant_id=${ARM_TENANT_ID}"
+    - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false" -backend-config="oidc_token_file_path=${CI_PROJECT_DIR}/oidc.jwt" -backend-config="client_id=${ARM_CLIENT_ID}" -backend-config="tenant_id=${ARM_TENANT_ID}"
     - terraform destroy -auto-approve
