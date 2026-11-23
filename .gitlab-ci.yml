@@ -12,6 +12,7 @@ variables:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "0"
   ARM_USE_OIDC: "true"
+  ARM_USE_CLI: "false"
   ARM_CLIENT_ID: "dbb75d24-124d-4ad4-ba1a-655b7d36f193"
   ARM_TENANT_ID: "ce4fe8c3-7620-4469-892f-509e9b1e1401"
   ARM_SUBSCRIPTION_ID: "8999b3c0-35d0-4d50-870d-048f32c71e67"
@@ -43,7 +44,7 @@ plan:
   stage: plan
   resource_group: production
   script:
-    - terraform init -backend-config="use_oidc=true"
+    - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false"
     - terraform plan -out=tfplan
   artifacts:
     paths:
@@ -63,7 +64,7 @@ apply:
       when: manual
       allow_failure: false
   script:
-    - terraform init -backend-config="use_oidc=true"
+    - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false"
     - terraform apply tfplan
 
 destroy:
@@ -79,5 +80,5 @@ destroy:
       when: manual
       allow_failure: true
   script:
-    - terraform init -backend-config="use_oidc=true"
+    - terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false"
     - terraform destroy -auto-approve
