@@ -1,0 +1,118 @@
+name: Terraform
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+    inputs:
+      action:
+        type: choice
+        description: Terraform action
+        options:
+          - plan
+          - apply
+          - destroy
+        default: plan
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-production
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "0"
+  ARM_USE_OIDC: "true"
+  ARM_USE_CLI: "false"
+  ARM_CLIENT_ID: "dbb75d24-124d-4ad4-ba1a-655b7d36f193"
+  ARM_TENANT_ID: "ce4fe8c3-7620-4469-892f-509e9b1e1401"
+  ARM_SUBSCRIPTION_ID: "8999b3c0-35d0-4d50-870d-048f32c71e67"
+  TF_VAR_admin_cidr: ${{ vars.ADMIN_CIDR }}
+  TF_VAR_admin_ssh_public_key: ${{ vars.ADMIN_SSH_PUBLIC_KEY }}
+
+defaults:
+  run:
+    shell: bash
+    working-directory: terraform
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.17.2
+      - run: terraform fmt -check -recursive
+
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.17.2
+      - run: terraform init -backend=false
+      - run: terraform validate
+
+  plan:
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.action != 'destroy')
+    needs:
+      - fmt
+      - validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.17.2
+      - run: terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false"
+      - run: terraform plan -out=tfplan
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: terraform/tfplan
+          retention-days: 1
+
+  apply:
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+    needs:
+      - plan
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.17.2
+      - uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: terraform
+      - run: terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false"
+      - run: terraform apply tfplan
+
+  destroy:
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
+    needs:
+      - fmt
+      - validate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.17.2
+      - run: terraform init -backend-config="use_oidc=true" -backend-config="use_cli=false"
+      - run: terraform destroy -auto-approve
