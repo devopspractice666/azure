@@ -23,6 +23,22 @@ variables:
   rules:
     - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
 
+oidc_diagnostic:
+  stage: validate
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main"
+  id_tokens:
+    AZURE_ID_TOKEN_DIAGNOSTIC:
+      aud: api://AzureADTokenExchange
+  script:
+    - 'echo "GitLab version: ${CI_SERVER_VERSION:-unknown}"'
+    - 'echo "Runner version: ${CI_RUNNER_VERSION:-unknown}"'
+    - 'echo "Generated ID token length: ${#AZURE_ID_TOKEN_DIAGNOSTIC}"'
+    - 'echo "Legacy CI_JOB_JWT length: ${#CI_JOB_JWT}"'
+    - 'echo "Legacy CI_JOB_JWT_V2 length: ${#CI_JOB_JWT_V2}"'
+    - 'test -n "$AZURE_ID_TOKEN_DIAGNOSTIC" || (echo "GitLab did not issue the requested ID token" && exit 1)'
+
 fmt:
   extends: .terraform
   stage: validate
